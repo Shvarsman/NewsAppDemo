@@ -1,4 +1,4 @@
-# News App
+# NewsAppDemo
 
 Учебное Android-приложение для работы с [NewsAPI](https://newsapi.org/).
 
@@ -10,4 +10,3 @@
 ```properties
 NEWS_API_KEY="YOUR_API_KEY"
 ```
-# NewsAppDemo
