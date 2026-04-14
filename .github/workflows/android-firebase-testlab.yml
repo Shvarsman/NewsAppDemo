@@ -134,6 +134,6 @@ jobs:
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --app apks/app-debug.apk \
             --test apks/app-debug-androidTest.apk \
-            --device model=Pixel2,version=30,locale=en,orientation=portrait \
+            --device model=Pixel2.arm,version=30,locale=en,orientation=portrait \
             --timeout 15m \
             --use-orchestrator
