@@ -56,30 +56,43 @@ jobs:
   firebase-test-lab:
     needs: test-and-build
     runs-on: ubuntu-latest
-    # Secrets are not passed to workflows from forked PRs; empty secrets also break auth@v2.
-    # Prefer GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (single-line base64 of the .json file) to avoid
-    # UTF-16 / BOM / multiline paste issues on Windows.
-    if: >
-      (github.event_name != 'pull_request' ||
-        github.event.pull_request.head.repo.full_name == github.repository) &&
-      (secrets.GCP_FIREBASE_SERVICE_ACCOUNT != '' ||
-        secrets.GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 != '') &&
-      secrets.GCP_PROJECT_ID != ''
+    # Job-level `if` cannot use `secrets` (GitHub limitation). Fork PR guard stays here; GCP
+    # secret checks run in the first step. Prefer GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (single-line
+    # base64 of the .json file) to avoid UTF-16 / BOM / multiline paste issues on Windows.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
+      - name: Check GCP secrets configured
+        id: gcp_ready
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_SA_JSON: ${{ secrets.GCP_FIREBASE_SERVICE_ACCOUNT }}
+          GCP_SA_B64: ${{ secrets.GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+        run: |
+          if [ -n "${GCP_PROJECT_ID}" ] && { [ -n "${GCP_SA_JSON}" ] || [ -n "${GCP_SA_B64}" ]; }; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Firebase Test Lab: set GCP_PROJECT_ID and GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (or GCP_FIREBASE_SERVICE_ACCOUNT)."
+          fi
+
       - name: Download debug APK
+        if: steps.gcp_ready.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: app-debug-apk
           path: apks
 
       - name: Download androidTest APK
+        if: steps.gcp_ready.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: app-debug-androidTest-apk
           path: apks
 
       - name: Prepare GCP service account JSON
+        if: steps.gcp_ready.outputs.ready == 'true'
         id: gcp_creds
         shell: bash
         env:
@@ -104,14 +117,17 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Authenticate in Google Cloud
+        if: steps.gcp_ready.outputs.ready == 'true'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ steps.gcp_creds.outputs.credentials_json }}
 
       - name: Set up gcloud CLI
+        if: steps.gcp_ready.outputs.ready == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Run UI tests in Firebase Test Lab
+        if: steps.gcp_ready.outputs.ready == 'true'
         run: |
           gcloud firebase test android run \
             --type instrumentation \
