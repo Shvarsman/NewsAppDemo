@@ -1,3 +1,6 @@
+# Main job runs without Google billing. Firebase Test Lab needs a Blaze-linked GCP project
+# (billing). To run the optional Test Lab job, add repo variable ENABLE_FIREBASE_TEST_LAB=true
+# and configure GCP_* / Firebase secrets as before.
 name: Android CI with Firebase Test Lab
 
 on:
@@ -56,10 +59,13 @@ jobs:
   firebase-test-lab:
     needs: test-and-build
     runs-on: ubuntu-latest
+    # Opt-in: without billing, Test Lab will fail on Storage/API. Default is off (var unset or not "true").
     # Job-level `if` cannot use `secrets` (GitHub limitation). Fork PR guard stays here; GCP
     # secret checks run in the first step. Prefer GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (single-line
     # base64 of the .json file) to avoid UTF-16 / BOM / multiline paste issues on Windows.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: |
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      vars.ENABLE_FIREBASE_TEST_LAB == 'true'
 
     steps:
       - name: Check GCP secrets configured
