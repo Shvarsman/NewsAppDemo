@@ -6,6 +6,7 @@ on:
       - main
       - master
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test-and-build:
@@ -40,10 +41,72 @@ jobs:
       - name: Build debug APK and androidTest APK
         run: ./gradlew assembleDebug assembleDebugAndroidTest
 
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload androidTest APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-androidTest-apk
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+  firebase-test-lab:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    # Secrets are not passed to workflows from forked PRs; empty secrets also break auth@v2.
+    # Prefer GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (single-line base64 of the .json file) to avoid
+    # UTF-16 / BOM / multiline paste issues on Windows.
+    if: >
+      (github.event_name != 'pull_request' ||
+        github.event.pull_request.head.repo.full_name == github.repository) &&
+      (secrets.GCP_FIREBASE_SERVICE_ACCOUNT != '' ||
+        secrets.GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 != '') &&
+      secrets.GCP_PROJECT_ID != ''
+
+    steps:
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-debug-apk
+          path: apks
+
+      - name: Download androidTest APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-debug-androidTest-apk
+          path: apks
+
+      - name: Prepare GCP service account JSON
+        id: gcp_creds
+        shell: bash
+        env:
+          GCP_SA_JSON: ${{ secrets.GCP_FIREBASE_SERVICE_ACCOUNT }}
+          GCP_SA_B64: ${{ secrets.GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/gcp-sa.json"
+          if [ -n "${GCP_SA_B64}" ]; then
+            printf '%s' "${GCP_SA_B64}" | base64 --decode > "${OUT}"
+          elif [ -n "${GCP_SA_JSON}" ]; then
+            printf '%s' "${GCP_SA_JSON}" > "${OUT}"
+          else
+            echo "::error::Set GCP_FIREBASE_SERVICE_ACCOUNT_BASE64 (recommended) or GCP_FIREBASE_SERVICE_ACCOUNT"
+            exit 1
+          fi
+          python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' "${OUT}"
+          {
+            echo 'credentials_json<<CREDS_JSON_EOF'
+            cat "${OUT}"
+            echo 'CREDS_JSON_EOF'
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Authenticate in Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: "${{ secrets.GCP_FIREBASE_SERVICE_ACCOUNT }}"
+          credentials_json: ${{ steps.gcp_creds.outputs.credentials_json }}
 
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
@@ -53,14 +116,8 @@ jobs:
           gcloud firebase test android run \
             --type instrumentation \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
-            --app app/build/outputs/apk/debug/app-debug.apk \
-            --test app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --app apks/app-debug.apk \
+            --test apks/app-debug-androidTest.apk \
             --device model=Pixel2,version=30,locale=en,orientation=portrait \
             --timeout 15m \
             --use-orchestrator
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
