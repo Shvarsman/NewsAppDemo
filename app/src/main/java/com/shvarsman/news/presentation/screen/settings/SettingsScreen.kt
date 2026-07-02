@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -127,6 +128,7 @@ fun SettingsScreen(
                             subtitle = stringResource(R.string.show_notifications_about_articles)
                         ) {
                             Switch(
+                                modifier = Modifier.testTag("notifications_switch"),
                                 checked = currentState.notificationsEnabled,
                                 onCheckedChange = { enabled ->
                                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -147,6 +149,7 @@ fun SettingsScreen(
                             subtitle = stringResource(R.string.save_mobile_data)
                         ) {
                             Switch(
+                                modifier = Modifier.testTag("wifi_only_switch"),
                                 checked = currentState.wifiOnly,
                                 onCheckedChange = {
                                     viewModel.processCommand(

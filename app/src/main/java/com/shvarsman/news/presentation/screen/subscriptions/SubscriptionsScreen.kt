@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -176,6 +177,7 @@ private fun SubscriptionsTopBar(
             )
             Icon(
                 modifier = Modifier
+                    .testTag("settings_icon")
                     .clip(CircleShape)
                     .clickable {
                         onSettingsClick()
@@ -234,7 +236,9 @@ private fun Subscriptions(
         modifier = modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("subscription_query_field"),
             value = query,
             onValueChange = onQueryChanged,
             label = {
@@ -246,7 +250,9 @@ private fun Subscriptions(
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("add_subscription_button"),
             onClick = onSubscribeButtonClick,
             enabled = isSubscribeButtonEnabled
         ) {
