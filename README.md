@@ -47,5 +47,4 @@ Android-приложения — от ручного анализа и доку�
 GitHub Actions (`.github/workflows/android-firebase-testlab.yml`) на каждый push/PR:
 1. **test-and-build** — прогон unit-тестов, генерация и выгрузка JaCoCo-отчёта, сборка APK
 2. **instrumented-tests** — Compose UI-тесты и smoke-тест на Android-эмуляторе (API 33), поднимается прямо на раннере GitHub Actions, без GCP-биллинга
-3. **firebase-test-lab** — опциональный прогон на матрице реальных устройств Firebase Test Lab (выключен по умолчанию, требует настройки GCP)
 
